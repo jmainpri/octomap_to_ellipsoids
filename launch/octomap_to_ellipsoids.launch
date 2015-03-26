@@ -1,0 +1,22 @@
+<!-- 
+  Example launch file for octomap_server mapping: 
+  Listens to incoming PointCloud2 data and incrementally builds an octomap. 
+  The data is sent out in different representations. 
+
+  Copy this file into your workspace and adjust as needed, see
+  www.ros.org/wiki/octomap_server for details  
+-->
+<launch>
+
+    <arg name="output" default="screen"/>
+
+    <!-- <include file="$(find octomap_to_ellipsoids)/launch/octomap_server_kinect.launch" /> -->
+
+    <node pkg="octomap_to_ellipsoids" type="octomap_to_ellipsoids_node" name="octomap_to_ellipsoids">
+
+		<param name="publish_as_markers" type="bool" value="true" />
+		<param name="octomap_topic" type="string" value="/octomap_binary" />
+	
+	</node>
+
+</launch>
