@@ -8,6 +8,8 @@
 		<param name="use_stored_point_cloud" type="bool" value="false" />
 		<param name="publish_as_markers" type="bool" value="true" />
 		<param name="octomap_topic" type="string" value="/move_group/monitored_planning_scene" />
+		<param name="ellipsoid_bounding_box" type="string" value="-1.0 1.0 -1.5 0.0 0.0 2.0" />
+		<param name="nb_ellipsoids" type="int" value="20" />
 	
 	</node>
 

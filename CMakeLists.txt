@@ -13,17 +13,23 @@ octomap_msgs
 visualization_msgs
 tf
 moveit_msgs
+geometry_msgs
+ellipsoid_msgs
 )
 find_package(cmake_modules REQUIRED)
 find_package(octomap REQUIRED)
 find_package(Eigen REQUIRED) # TODO remove this
 find_package(PCL REQUIRED)
 
+message("CMAKE_PREFIX_PATH : " ${CMAKE_PREFIX_PATH})
+
 message("octomap include_dirs: " ${OCTOMAP_INCLUDE_DIRS})
 message("octomap libraries: " ${OCTOMAP_LIBRARY_DIRS})
 
 # TODO Remove that
+# and replace by set(CMAKE_PREFIX_PATH /usr;/usr/local;${CMAKE_PREFIX_PATH})
 set( Eigen_INCLUDE_DIRS /usr/include/eigen3 )
+
 
 message("Eigen include_dirs: " ${Eigen_INCLUDE_DIRS})
 message("Eigen libraries: " ${Eigen_LIBRARIES})
@@ -47,9 +53,11 @@ catkin_python_setup()
 
 ## Generate messages in the 'msg' folder
 # add_message_files(
-#    FILES
-#   Message1.msg
-#   Message2.msg
+#   DIRECTORY
+#   msg
+#   FILES
+#   Ellipsoid.msg
+#   EllipsoidArray.msg
 #)
 
 ## Generate services in the 'srv' folder
@@ -62,9 +70,7 @@ catkin_python_setup()
 ## Generate added messages and services with any dependencies listed here
 #generate_messages(
 #  DEPENDENCIES
-#  actionlib_msgs
-#  hubo_robot_msgs
-#  trajectory_msgs
+#  geometry_msgs
 #)
 
 ###################################
@@ -79,12 +85,16 @@ catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES hubo_trajectory_interface
   CATKIN_DEPENDS 
-  roscpp 
-  rospy 
+  roscpp
+  rospy
   std_msgs
   sensor_msgs
   octomap_msgs
   visualization_msgs
+  tf
+  moveit_msgs
+  geometry_msgs
+  ellipsoid_msgs
   DEPENDS 
   octomap
   system_lib 

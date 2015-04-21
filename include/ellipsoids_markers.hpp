@@ -46,6 +46,7 @@ public:
     EllipsoidsToMarkers();
     ~EllipsoidsToMarkers();
 
+    visualization_msgs::Marker boxMarker(int id, const std::vector<double>& box );
     visualization_msgs::Marker pointcloudMarker(int id, const pcl::PointCloud<pcl::PointXYZ>& cloud );
     visualization_msgs::Marker vectorMarker( int id, const Eigen::Vector3d& vector, const Eigen::Vector3d& position );
     visualization_msgs::Marker ellipsoidMarker( int& id, const Eigen::Vector3d& mean, const Eigen::Matrix3d& covariance, std::vector<visualization_msgs::Marker>& eigen_vectors );

@@ -21,6 +21,46 @@ EllipsoidsToMarkers::~EllipsoidsToMarkers()
 }
 
 // used to paint the autovectors
+visualization_msgs::Marker EllipsoidsToMarkers::boxMarker(int id, const std::vector<double>& box )
+{
+    visualization_msgs::Marker marker;
+
+    marker.header.frame_id = frame_id_;
+    marker.header.stamp = ros::Time::now();
+    // Populate the options
+    marker.ns = "bounding_box";
+    marker.id = id;
+
+    marker.type = visualization_msgs::Marker::CUBE;
+    marker.action = visualization_msgs::Marker::ADD;
+    marker.lifetime = ros::Duration(0.0);
+    marker.frame_locked = false;
+
+    marker.scale.x = box[1] - box[0];
+    marker.scale.y = box[3] - box[2];
+    marker.scale.z = box[5] - box[4];
+
+    marker.pose.position.x = ( box[1] + box[0] ) / 2.;
+    marker.pose.position.y = ( box[3] + box[2] ) / 2.;
+    marker.pose.position.z = ( box[5] + box[4] ) / 2.;
+
+    marker.pose.orientation.x = 0.0;
+    marker.pose.orientation.y = 0.0;
+    marker.pose.orientation.z = 0.0;
+    marker.pose.orientation.w = 1.0;
+
+    double alpha = 0.2;
+
+    // Color it
+    marker.color.a = alpha;
+    marker.color.b = 0.0;
+    marker.color.g = 0.0;
+    marker.color.r = 1.0;
+
+    return marker;
+}
+
+// used to paint the autovectors
 visualization_msgs::Marker EllipsoidsToMarkers::pointcloudMarker(int id, const pcl::PointCloud<pcl::PointXYZ>& cloud )
 {
     visualization_msgs::Marker marker;

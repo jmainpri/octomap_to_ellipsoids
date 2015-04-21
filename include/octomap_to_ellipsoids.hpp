@@ -51,6 +51,8 @@ public:
 
 private:
 
+    void publishEllipsoids();
+
     void getOctomap( octomap_msgs::Octomap::ConstPtr octomap );
     void getMoveitOctomap( moveit_msgs::PlanningScene::ConstPtr msg );
     void computeGMMs( const std::vector<gmm::Vector>& points, const gmm::BBox& box );
@@ -60,11 +62,13 @@ private:
     void saveCloudToFile();
     bool loadCloudFromFile();
     void getPointCloud();
+    bool isInBoundingBox( double x, double y, double z ) const;
 
     void getGmmPointsFromOctomap( std::vector<gmm::Vector>& points, gmm::BBox& box );
     void getGmmPointsFromPCL( std::vector<gmm::Vector>& points, gmm::BBox& box );
 
     ros::Publisher viz_pub_;
+    ros::Publisher ellipsoid_pub_;
     ros::Subscriber sub_octomap_;
     ros::NodeHandle* nh_;
 
@@ -73,6 +77,8 @@ private:
     bool use_stored_pointcloud_;
     double spin_rate_;
     std::string octomap_topic_;
+    std::vector<double> bounding_box_;
+    int nb_ellipsoids_;
 
     int messages_received_;
     octomap::OcTree* octomap_;

@@ -37,6 +37,9 @@
 #include <octomap/OcTree.h>
 #include <octomap/OcTreeBase.h>
 #include <visualization_msgs/Marker.h>
+#include <geometry_msgs/Pose.h>
+#include <ellipsoid_msgs/EllipsoidArray.h>
+#include <ellipsoid_msgs/Ellipsoid.h>
 
 #include <Eigen/Core>
 
@@ -52,11 +55,71 @@ OctomapToEllipsoids::OctomapToEllipsoids()
     octomap_ = NULL;
     frame_id_ = "/camera_link";
     new_octomap_ = false;
+    nb_ellipsoids_ = 10;
+    bounding_box_.resize(6);
+    bounding_box_[0] = 0;
+    bounding_box_[1] = 0;
+    bounding_box_[2] = 0;
+    bounding_box_[3] = 0;
+    bounding_box_[4] = 0;
+    bounding_box_[5] = 0;
 }
 
 OctomapToEllipsoids::~OctomapToEllipsoids()
 {
 
+}
+
+void OctomapToEllipsoids::publishEllipsoids()
+{
+    ellipsoid_msgs::EllipsoidArray array;
+
+    // Set frame id and stamp
+    array.frame_id = frame_id_;
+    array.header.stamp = ros::Time::now();
+
+    for( size_t i=0; i<mean_.size(); i++ )
+    {
+        // getting the distribution eigen vectors and values
+        Eigen::EigenSolver<Eigen::MatrixXd> es( covariance_[i] );
+        Eigen::VectorXcd eig_val = es.eigenvalues();
+        Eigen::MatrixXcd V = es.eigenvectors();
+
+        // building the rotation matrix
+        Eigen::Vector3d eig_x = V.col(0).real().normalized();
+        Eigen::Vector3d eig_y = V.col(1).real().normalized();
+        Eigen::Vector3d eig_z = eig_x.cross( eig_y );
+
+        // Get orientation
+        Eigen::Matrix3d m;
+        m.col(0) = eig_x;
+        m.col(1) = eig_y;
+        m.col(2) = eig_z;
+        Eigen::Quaterniond q( m );
+
+        ellipsoid_msgs::Ellipsoid ellipsoid;
+
+        // Set mean
+        ellipsoid.pose.position.x = mean_[i][0];
+        ellipsoid.pose.position.y = mean_[i][1];
+        ellipsoid.pose.position.z = mean_[i][2];
+
+        // Set orientation
+        ellipsoid.pose.orientation.x = q.x();
+        ellipsoid.pose.orientation.y = q.y();
+        ellipsoid.pose.orientation.z = q.z();
+        ellipsoid.pose.orientation.w = q.w();
+
+        // Set eigen values
+        ellipsoid.eigen_val_x = eig_val[0].real();
+        ellipsoid.eigen_val_y = eig_val[1].real();
+        ellipsoid.eigen_val_z = eig_val[2].real();
+
+        // Array
+        array.ellipsoids.push_back( ellipsoid );
+    }
+
+    ellipsoid_pub_.publish( array );
 }
 
 void OctomapToEllipsoids::ellipsoidsToMarkers()
@@ -92,6 +155,9 @@ void OctomapToEllipsoids::ellipsoidsToMarkers()
             }
         }
     }
+
+    visualization_msgs::Marker marker = display_->boxMarker( 0, bounding_box_ );
+    viz_pub_.publish( marker );
 
     // Save to file
     saveCloudToFile();
@@ -139,7 +205,9 @@ void OctomapToEllipsoids::saveCloudToFile()
                 pos.x = it.getX();
                 pos.y = it.getY();
                 pos.z = it.getZ();
-                cloud_->points.push_back( pos );
+
+                if( isInBoundingBox( pos.x, pos.y, pos.z ) )
+                    cloud_->points.push_back( pos );
             }
         }
     }
@@ -148,11 +216,14 @@ void OctomapToEllipsoids::saveCloudToFile()
     cloud_->height    = cloud_->points.size();
     cloud_->is_dense  = false;
 
-    pcl::io::savePCDFileASCII( "test_pcd.pcd", *cloud_ );
+    if( cloud_->height > 0 )
+    {
+        pcl::io::savePCDFileASCII( "test_pcd.pcd", *cloud_ );
 
-    // Send point cloud
-    visualization_msgs::Marker marker = display_->pointcloudMarker( 0, *cloud_ );
-    viz_pub_.publish( marker );
+        // Send point cloud
+        visualization_msgs::Marker marker = display_->pointcloudMarker( 0, *cloud_ );
+        viz_pub_.publish( marker );
+    }
 }
 
 bool OctomapToEllipsoids::loadCloudFromFile()
@@ -175,6 +246,26 @@ bool OctomapToEllipsoids::loadCloudFromFile()
                   << " "    << cloud->points[i].y
                   << " "    << cloud->points[i].z << std::endl;
     **/
+
+    return true;
+}
+
+bool OctomapToEllipsoids::isInBoundingBox( double x, double y, double z ) const
+{
+    if( x < bounding_box_[0] )
+        return false;
+    if( x > bounding_box_[1] )
+        return false;
+
+    if( y < bounding_box_[2] )
+        return false;
+    if( y > bounding_box_[3] )
+        return false;
+
+    if( z < bounding_box_[4] )
+        return false;
+    if( z > bounding_box_[5] )
+        return false;
 
     return true;
 }
@@ -208,7 +299,8 @@ void OctomapToEllipsoids::getGmmPointsFromOctomap( std::vector<gmm::Vector>& poi
                 pos[1] = it.getY();
                 pos[2] = it.getZ();
 
-                points.push_back( pos );
+                if( isInBoundingBox( pos[0], pos[1], pos[2] ) )
+                    points.push_back( pos );
 
                 nb_leaf_occipied ++;
 
@@ -291,7 +383,7 @@ void OctomapToEllipsoids::computeGMMs( const std::vector<gmm::Vector>& points, c
     gmm::GaussianMixture g;
 
     // g.initEM_3DBox( 3, dataset, box ); // initialize the model, // Number of states in the GMM
-    g.initEM_Kmeans( 10, dataset );
+    g.initEM_Kmeans( nb_ellipsoids_, dataset );
     g.doEM( dataset, 20 ); // performs EM
 
     {
@@ -394,6 +486,21 @@ bool OctomapToEllipsoids::startNode(int argc, char **argv)
     nhp.param(std::string("use_moveit_octomap"), use_moveit_octomap_, bool(false));
     nhp.param(std::string("publish_as_markers"), publish_as_markers_, bool(true));
     nhp.param(std::string("octomap_topic"), octomap_topic_, std::string("/octomap_full"));
+    nhp.param(std::string("nb_ellipsoids"), nb_ellipsoids_, int(10));
+
+    // Get bounding box
+    std::string bounding_box;
+    nhp.param(std::string("ellipsoid_bounding_box"), bounding_box, std::string("-1 1 -1 1 -1 1"));
+
+    std::stringstream linestream( bounding_box );
+    for(unsigned i=0; i < bounding_box_.size(); i++)
+    {
+        std::string item;
+        std::getline( linestream, item, ' ');
+        std::istringstream ss( item );
+        ss >> bounding_box_[i];
+        cout << "bounding box : " <<  bounding_box_[i] << endl;
+    }
 
     // nhp.param(std::string("arm_config_topic"), arm_config_topic, std::string("/l_arm_controller/state"));
     // nhp.param(std::string("arm_command_action"), arm_command_action, std::string("/l_arm_controller/joint_trajectory_action"));
@@ -423,6 +530,9 @@ bool OctomapToEllipsoids::startNode(int argc, char **argv)
     // Publisher for markers
     viz_pub_ = nh_->advertise<visualization_msgs::Marker>("ellipsoid_markers", 1, true);
 
+    // Publisher for ellipsoids
+    ellipsoid_pub_ = nh_->advertise<ellipsoid_msgs::EllipsoidArray>("ellipsoid_publisher", 1, true);
+
     // Spin node
     ros::Rate spin_rate(spin_rate_);
     while( ros::ok() )
@@ -436,6 +546,9 @@ bool OctomapToEllipsoids::startNode(int argc, char **argv)
         // Set ellipsoids to markers
         if( publish_as_markers_ )
             ellipsoidsToMarkers();
+
+        // Publish Ellipsoids
+        publishEllipsoids();
 
         // Process callbacks
         ros::spinOnce();
