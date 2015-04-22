@@ -42,6 +42,7 @@
 #include <ellipsoid_msgs/Ellipsoid.h>
 
 #include <Eigen/Core>
+#include <Eigen/Eigenvalues>
 
 #include <stdio.h>
 
